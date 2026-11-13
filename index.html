@@ -1,0 +1,478 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex, nofollow">
+<title>Métricas de Pía</title>
+<link rel="icon" type="image/png" href="/favicon.png">
+<link rel="apple-touch-icon" href="/favicon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box}
+:root{
+  color-scheme:light;
+  --bg:#F3F4FF; --card:#FFFFFF; --border:#E3E8F3; --text:#091E42; --muted:#5B6987; --subtle:#8C93A8;
+  --primary:#704EFD; --secondary:#2CB7FF; --track:#F3F4FF; --grid:#E3E8F3;
+  --shadow:0 1px 3px rgb(0 0 0 / .15);
+  box-sizing:border-box;
+  padding-top:env(safe-area-inset-top,0px);
+  padding-bottom:env(safe-area-inset-bottom,0px);
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    color-scheme:dark;
+    --bg:#091E42; --card:rgba(255,255,255,.06); --border:rgba(255,255,255,.14); --text:#F3F4FF;
+    --muted:#B4BED3; --subtle:#8E9AB5; --track:rgba(255,255,255,.1); --grid:rgba(255,255,255,.12);
+    --shadow:none;
+  }
+}
+:root[data-theme="dark"]{
+  color-scheme:dark;
+  --bg:#091E42; --card:rgba(255,255,255,.06); --border:rgba(255,255,255,.14); --text:#F3F4FF;
+  --muted:#B4BED3; --subtle:#8E9AB5; --track:rgba(255,255,255,.1); --grid:rgba(255,255,255,.12);
+  --shadow:none;
+}
+html{scroll-padding-top:env(safe-area-inset-top,0px);background:var(--bg)}
+body{margin:0;background:var(--bg);color:var(--text);font-family:Poppins,Helvetica,sans-serif;line-height:1.5;-webkit-font-smoothing:antialiased}
+.wrap{max-width:1040px;margin:0 auto;padding:20px 16px 48px}
+[hidden]{display:none !important}
+
+.hero{position:relative;overflow:hidden;border-radius:8px;padding:28px 28px 26px;color:#fff;
+  background:linear-gradient(135deg,#704EFD 0%,#704EFD 55%,#2CB7FF 150%)}
+.hero h1{margin:0 0 8px;font-size:clamp(24px,4.4vw,34px);line-height:1.2;font-weight:700;max-width:22ch;position:relative}
+.hero p{margin:0;font-size:14px;max-width:70ch;position:relative;opacity:.95}
+.hero .deco{position:absolute;right:-30px;top:-40px;width:320px;height:240px;pointer-events:none}
+.demo{display:inline-block;margin:0 0 12px;padding:2px 12px;border-radius:9999px;background:#FFC728;color:#091E42;font-size:12px;font-weight:600;position:relative}
+
+.card{background:var(--card);border:1px solid var(--border);border-radius:8px;box-shadow:var(--shadow);padding:16px 18px}
+.card h2{margin:0;font-size:16px;font-weight:600}
+.card .hint{margin:2px 0 0;font-size:13px;color:var(--muted)}
+
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(200px,100%),1fr));gap:12px;margin-top:16px}
+.kpi .l{font-size:13px;color:var(--muted)}
+.kpi .v{font-size:28px;font-weight:600;line-height:1.2;margin-top:4px;font-variant-numeric:tabular-nums}
+.kpi .s{font-size:12px;color:var(--muted);margin-top:2px}
+.kpi .s.up{color:var(--primary);font-weight:500}
+
+.chartcard{margin-top:12px}
+.chead{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:baseline;gap:8px 16px}
+.legend{display:flex;gap:16px;font-size:12px;color:var(--muted)}
+.legend i{display:inline-block;width:10px;height:10px;border-radius:9999px;margin-right:6px;vertical-align:-1px}
+#chart{position:relative;margin-top:12px;min-height:200px}
+#chart svg{display:block;touch-action:pan-y}
+.ax{fill:var(--subtle);font-size:11px;font-family:Poppins,Helvetica,sans-serif}
+.tip{position:absolute;top:0;transform:translateX(-50%);background:var(--text);color:var(--bg);font-size:12px;line-height:1.45;padding:6px 10px;border-radius:6px;pointer-events:none;white-space:nowrap;z-index:2}
+
+.heatcard{margin-top:12px}
+#heat{display:grid;gap:3px;margin-top:14px;align-items:center}
+.hc{height:22px;border-radius:4px;background:var(--track)}
+.hl{font-size:11px;color:var(--subtle);line-height:1}
+.hl.r{padding-right:6px;font-size:12px;color:var(--muted)}
+.heatleg{display:flex;align-items:center;gap:8px;margin-top:12px;font-size:11px;color:var(--subtle)}
+.heatleg i{display:block;width:90px;height:8px;border-radius:9999px;background:linear-gradient(90deg,var(--track),#704EFD)}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(300px,100%),1fr));gap:12px;margin-top:12px}
+.bars{display:flex;flex-direction:column;gap:14px;margin:14px 0 0;padding:0;list-style:none}
+.bar .top{display:flex;justify-content:space-between;gap:12px;font-size:13px}
+.bar .val{color:var(--muted);white-space:nowrap;font-variant-numeric:tabular-nums}
+.track{height:8px;margin-top:6px;background:var(--track);border-radius:9999px;overflow:hidden}
+.fill{height:100%;width:0;border-radius:9999px;background:var(--primary);transition:width .5s ease}
+
+.login,.status{margin-top:16px;text-align:center;padding:28px 18px}
+.login p,.status p{margin:6px auto 16px;max-width:46ch;color:var(--muted);font-size:14px}
+#loginForm{display:flex;gap:8px;justify-content:center;flex-wrap:wrap}
+#pw{font:inherit;font-size:14px;color:var(--text);background:var(--card);border:1px solid var(--border);border-radius:8px;padding:9px 12px;min-width:220px}
+#pw:focus-visible{outline:3px solid var(--secondary);outline-offset:2px}
+button.btn{font:inherit;font-size:14px;font-weight:500;color:#fff;background:var(--primary);border:0;border-radius:8px;padding:9px 18px;cursor:pointer}
+button.link{font:inherit;font-size:12px;color:var(--muted);background:none;border:0;padding:0;cursor:pointer;text-decoration:underline}
+button:focus-visible{outline:3px solid var(--secondary);outline-offset:2px}
+.foot{margin-top:20px;font-size:12px;color:var(--muted);display:flex;flex-wrap:wrap;gap:8px 16px;justify-content:space-between}
+@media (prefers-reduced-motion:reduce){.fill{transition:none}}
+@media (max-width:520px){.hero{padding:22px 18px}.hero .deco{opacity:.6}}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="hero">
+    <svg class="deco" viewBox="0 0 320 240" aria-hidden="true">
+      <circle cx="220" cy="90" r="110" fill="#fff" fill-opacity=".10"/>
+      <circle cx="270" cy="150" r="70" fill="#2CB7FF" fill-opacity=".35"/>
+      <circle cx="170" cy="170" r="34" fill="#DFD5FF" fill-opacity=".30"/>
+    </svg>
+    <span class="demo" id="demo" hidden>Datos de ejemplo</span>
+    <h1 id="heroTitle">Métricas de Pía</h1>
+    <p id="heroSub">Uso del asistente de Talento y Bienestar.</p>
+  </header>
+
+  <section class="card login" id="login" hidden>
+    <h2>Ingresa la clave del panel</h2>
+    <p id="loginMsg">Este panel es interno. Pídele la clave al equipo de Talento y Bienestar.</p>
+    <form id="loginForm" autocomplete="off">
+      <input type="password" id="pw" aria-label="Clave del panel" placeholder="Clave" required>
+      <button class="btn" type="submit">Entrar</button>
+    </form>
+  </section>
+
+  <section class="card status" id="status" hidden>
+    <h2 id="statusTitle">Cargando métricas</h2>
+    <p id="statusText"></p>
+    <button class="btn" id="retry" hidden>Reintentar</button>
+  </section>
+
+  <main id="app" hidden>
+    <div class="kpis" id="kpis"></div>
+
+    <section class="card chartcard" id="chartCard">
+      <div class="chead">
+        <div>
+          <h2>Uso día a día</h2>
+          <p class="hint">Pasa el cursor por el gráfico para ver cada día.</p>
+        </div>
+        <div class="legend">
+          <span><i style="background:var(--primary)"></i>Mensajes</span>
+          <span id="legUsers"><i style="background:var(--secondary)"></i>Personas activas</span>
+        </div>
+      </div>
+      <div id="chart"></div>
+    </section>
+
+    <section class="card heatcard" id="cHeat" hidden>
+      <h2>Cuándo la usan</h2>
+      <p class="hint" id="heatHint">Hora de Chile.</p>
+      <div id="heat"></div>
+      <div class="heatleg"><span>Menos</span><i></i><span>Más</span></div>
+    </section>
+
+    <div class="grid">
+      <section class="card" id="cFreq" hidden>
+        <h2>Cuántas veces vuelven</h2>
+        <p class="hint">Personas según los días distintos en que le han escrito.</p>
+        <ul class="bars" id="bFreq"></ul>
+      </section>
+      <section class="card" id="cChannel" hidden>
+        <h2>Cómo le escriben</h2>
+        <p class="hint">Mensaje directo o mención en un canal.</p>
+        <ul class="bars" id="bChannel"></ul>
+      </section>
+    </div>
+
+    <footer class="foot">
+      <span>Solo datos agregados. Pía no guarda el texto de las consultas.</span>
+      <button class="link" id="logout" hidden>Cerrar sesión</button>
+    </footer>
+  </main>
+</div>
+
+<script>
+(function(){
+"use strict";
+
+/* ====== CONFIGURACIÓN ======
+   DEMO = true  → muestra datos de ejemplo (sin clave ni API). Cambia a false al desplegar en Vercel. */
+var CONFIG = { DEMO: false, API_URL: "/api/metrics" };
+var DEMO = CONFIG.DEMO;
+
+var $ = function(id){ return document.getElementById(id); };
+var nf = new Intl.NumberFormat("es-CL");
+var P = function(n){ return n + "\u00A0%"; };
+var pct = function(a,b){ return b > 0 ? Math.round(a / b * 100) : 0; };
+var fmtDay = function(iso, o){ return new Date(iso + "T12:00:00").toLocaleDateString("es-CL", o || {day:"numeric", month:"short"}); };
+
+var LABELS = {
+  channel: { dm:"Mensaje directo", canal:"Mención en un canal" },
+  freq:    { "1":"Un solo día", "2-3":"Entre 2 y 3 días", "4+":"4 días o más" }
+};
+var DAYS = ["Lun","Mar","Mié","Jue","Vie","Sáb","Dom"];
+var DAYS_LONG = ["lunes","martes","miércoles","jueves","viernes","sábado","domingo"];
+
+/* ====== DATOS DE EJEMPLO ====== */
+function demoData(){
+  var s = 7, rnd = function(){ s = (s * 16807) % 2147483647; return s / 2147483647; };
+  var iso = function(d){ return d.getFullYear() + "-" + String(d.getMonth()+1).padStart(2,"0") + "-" + String(d.getDate()).padStart(2,"0"); };
+  var today = new Date(); today.setHours(12,0,0,0);
+  var daily = [], sumU = 0, total = 0;
+  for (var i = 27; i >= 0; i--){
+    var d = new Date(today); d.setDate(d.getDate() - i);
+    var wk = d.getDay() === 0 || d.getDay() === 6;
+    var ramp = 0.5 + 0.5 * (27 - i) / 27;
+    var m = wk ? 2 : Math.round(6 + ramp * 8 + rnd() * 6);
+    var u = Math.max(1, Math.round(m * (0.55 + rnd() * 0.2)));
+    daily.push({ date: iso(d), messages: m, users: u });
+    total += m; sumU += u;
+  }
+  var split = function(n, shares){
+    var out = [], acc = 0;
+    shares.forEach(function(sh, k){ var v = k === shares.length - 1 ? n - acc : Math.round(n * sh); out.push(v); acc += v; });
+    return out;
+  };
+  var ch = split(total, [.78, .22]);
+  var fr = split(Math.round(sumU * 0.6), [.5, .35, .15]);
+  var heat = [];
+  for (var w = 0; w < 7; w++){
+    var row = [];
+    for (var h = 0; h < 24; h++){
+      var base = (w < 5 && h >= 8 && h <= 18) ? 4 : (w < 5 && h >= 19 && h <= 21 ? 1 : 0);
+      var peak = (w === 1 && h >= 10 && h <= 11) ? 6 : (w < 5 && h >= 15 && h <= 16 ? 2 : 0);
+      row.push(base ? Math.max(0, Math.round(base + peak + (rnd() - .5) * 4)) : (rnd() > .93 ? 1 : 0));
+    }
+    heat.push(row);
+  }
+  return {
+    updatedAt: new Date().toISOString(),
+    totals: { messages: total, uniqueUsers: Math.round(sumU * 0.6), returning: fr[1] + fr[2], private: Math.round(total * 0.09), headcount: 180 },
+    daily: daily,
+    byChannel: { dm: ch[0], canal: ch[1] },
+    byFrequency: { "1": fr[0], "2-3": fr[1], "4+": fr[2] },
+    heat: heat
+  };
+}
+
+/* ====== AUTENTICACIÓN Y CARGA ====== */
+var key = null, lastDaily = null, lastW = 0;
+try { key = sessionStorage.getItem("pia_key"); } catch (e) {}
+
+function show(which){ ["login","status","app"].forEach(function(k){ $(k).hidden = k !== which; }); }
+function setStatus(title, text, retry){
+  show("status");
+  $("statusTitle").textContent = title;
+  $("statusText").textContent = text || "";
+  $("retry").hidden = !retry;
+}
+
+function showLogin(msg){
+  show("login");
+  $("loginMsg").textContent = msg || "Este panel es interno. Pídele la clave al equipo de Talento y Bienestar.";
+  $("pw").value = "";
+  $("pw").focus();
+}
+
+function fetchMetrics(){
+  return fetch(CONFIG.API_URL, { headers: { "X-Panel-Key": key } }).then(function(r){
+    if (r.status === 401){ var e = new Error("auth"); e.code = 401; throw e; }
+    if (!r.ok) throw new Error("http " + r.status);
+    return r.json();
+  });
+}
+
+function start(){
+  if (DEMO){ $("demo").hidden = false; render(demoData()); return; }
+  if (!key){ showLogin(); return; }
+  setStatus("Cargando métricas", "Un momento.", false);
+  fetchMetrics().then(render).catch(function(e){
+    if (e.code === 401){
+      key = null;
+      try { sessionStorage.removeItem("pia_key"); } catch (x) {}
+      showLogin("La clave no es correcta. Inténtalo de nuevo.");
+    } else setStatus("No pudimos cargar las métricas", "Revisa tu conexión e inténtalo de nuevo. Si sigue fallando, avisa al equipo que mantiene Pía.", true);
+  });
+}
+
+/* ====== RENDER ====== */
+function entriesFrom(src, labels){
+  var list = Array.isArray(src)
+    ? src.map(function(x){ return { name: String(x.name), value: Number(x.count) || 0 }; })
+    : Object.keys(src || {}).map(function(k){ return { key: k, name: (labels && labels[k]) || k, value: Number(src[k]) || 0 }; });
+  return list.filter(function(e){ return e.value > 0; }).sort(function(a,b){ return b.value - a.value; });
+}
+
+function bars(cardId, listId, entries, color){
+  var card = $(cardId), ul = $(listId);
+  ul.replaceChildren();
+  if (!entries.length){ card.hidden = true; return; }
+  card.hidden = false;
+  var total = entries.reduce(function(a,e){ return a + e.value; }, 0) || 1;
+  var max = Math.max.apply(null, entries.map(function(e){ return e.value; })) || 1;
+  entries.forEach(function(e){
+    var li = document.createElement("li"); li.className = "bar";
+    var top = document.createElement("div"); top.className = "top";
+    var n = document.createElement("span"); n.textContent = e.name;
+    var v = document.createElement("span"); v.className = "val"; v.textContent = nf.format(e.value) + " (" + P(pct(e.value, total)) + ")";
+    top.append(n, v);
+    var tr = document.createElement("div"); tr.className = "track";
+    var f = document.createElement("div"); f.className = "fill"; if (color) f.style.background = color;
+    tr.append(f); li.append(top, tr); ul.append(li);
+    requestAnimationFrame(function(){ f.style.width = (e.value / max * 100) + "%"; });
+  });
+}
+
+function niceStep(raw){
+  var p = Math.pow(10, Math.floor(Math.log10(raw))), m = raw / p;
+  return (m <= 1 ? 1 : m <= 2 ? 2 : m <= 5 ? 5 : 10) * p;
+}
+
+function renderChart(daily){
+  var box = $("chart");
+  if (daily.length < 2){ $("chartCard").hidden = true; return; }
+  $("chartCard").hidden = false;
+  var W = Math.max(280, Math.floor(box.clientWidth || 640));
+  lastW = W;
+  var H = W < 480 ? 200 : 240, L = 36, R = 10, T = 12, B = 26, iw = W - L - R, ih = H - T - B, n = daily.length;
+  var hasU = daily.some(function(p){ return p.users != null; });
+  $("legUsers").hidden = !hasU;
+  var maxV = Math.max.apply(null, daily.map(function(p){ return Math.max(p.messages, p.users || 0); })) || 1;
+  var step = Math.max(1, niceStep(maxV / 4)), yMax = step * 4;
+  var x = function(i){ return L + i * iw / (n - 1); };
+  var y = function(v){ return T + ih - (v / yMax) * ih; };
+  var path = function(k){ return daily.map(function(p,i){ return (i ? "L" : "M") + x(i).toFixed(1) + " " + y(p[k] || 0).toFixed(1); }).join(" "); };
+
+  var s = '<svg width="' + W + '" height="' + H + '" viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="Gráfico de mensajes y personas activas por día">';
+  s += '<defs><linearGradient id="ga" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#704EFD" stop-opacity=".22"/><stop offset="1" stop-color="#704EFD" stop-opacity="0"/></linearGradient></defs>';
+  for (var g = 0; g <= 4; g++){
+    var gy = y(g * step).toFixed(1);
+    s += '<line x1="' + L + '" x2="' + (W - R) + '" y1="' + gy + '" y2="' + gy + '" stroke="var(--grid)" stroke-width="1"/>';
+    s += '<text class="ax" x="' + (L - 8) + '" y="' + (Number(gy) + 4) + '" text-anchor="end">' + (g * step) + '</text>';
+  }
+  s += '<path d="' + path("messages") + ' L' + x(n-1).toFixed(1) + ' ' + y(0) + ' L' + x(0).toFixed(1) + ' ' + y(0) + ' Z" fill="url(#ga)"/>';
+  if (hasU) s += '<path d="' + path("users") + '" fill="none" stroke="#2CB7FF" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>';
+  s += '<path d="' + path("messages") + '" fill="none" stroke="#704EFD" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>';
+  [[0,"start"],[Math.floor((n-1)/2),"middle"],[n-1,"end"]].forEach(function(t){
+    s += '<text class="ax" x="' + x(t[0]).toFixed(1) + '" y="' + (H - 6) + '" text-anchor="' + t[1] + '">' + fmtDay(daily[t[0]].date) + '</text>';
+  });
+  s += '<line id="guide" y1="' + T + '" y2="' + (T + ih) + '" stroke="var(--subtle)" stroke-width="1" stroke-dasharray="3 3" visibility="hidden"/>';
+  s += '<circle id="dotM" r="4.5" fill="#704EFD" stroke="var(--card)" stroke-width="2" visibility="hidden"/>';
+  if (hasU) s += '<circle id="dotU" r="4" fill="#2CB7FF" stroke="var(--card)" stroke-width="2" visibility="hidden"/>';
+  s += '<rect id="hit" x="' + L + '" y="' + T + '" width="' + iw + '" height="' + ih + '" fill="transparent"/></svg><div class="tip" id="tip" hidden></div>';
+  box.innerHTML = s;
+
+  var svg = box.querySelector("svg"), tip = $("tip"), guide = $("guide"), dotM = $("dotM"), dotU = $("dotU");
+  function hide(){ tip.hidden = true; guide.setAttribute("visibility","hidden"); dotM.setAttribute("visibility","hidden"); if (dotU) dotU.setAttribute("visibility","hidden"); }
+  function move(e){
+    var r = svg.getBoundingClientRect();
+    var i = Math.round((e.clientX - r.left - L) / iw * (n - 1));
+    i = Math.min(n - 1, Math.max(0, i));
+    var p = daily[i], cx = x(i);
+    guide.setAttribute("x1", cx); guide.setAttribute("x2", cx); guide.setAttribute("visibility","visible");
+    dotM.setAttribute("cx", cx); dotM.setAttribute("cy", y(p.messages)); dotM.setAttribute("visibility","visible");
+    if (dotU && p.users != null){ dotU.setAttribute("cx", cx); dotU.setAttribute("cy", y(p.users)); dotU.setAttribute("visibility","visible"); }
+    var b = document.createElement("b"); b.textContent = fmtDay(p.date, {weekday:"short", day:"numeric", month:"short"});
+    var lines = [b, document.createElement("br"), document.createTextNode(nf.format(p.messages) + (p.messages === 1 ? " mensaje" : " mensajes"))];
+    if (p.users != null) lines.push(document.createElement("br"), document.createTextNode(nf.format(p.users) + (p.users === 1 ? " persona" : " personas")));
+    tip.replaceChildren.apply(tip, lines);
+    tip.hidden = false;
+    tip.style.left = Math.min(Math.max(cx, 60), W - 60) + "px";
+  }
+  svg.addEventListener("pointermove", move);
+  svg.addEventListener("pointerdown", move);
+  svg.addEventListener("pointerleave", hide);
+}
+
+function renderHeat(heat){
+  var card = $("cHeat"), box = $("heat");
+  box.replaceChildren();
+  if (!heat || heat.length !== 7){ card.hidden = true; return; }
+  var max = 0, pw = 0, ph = 0, hMin = 24, hMax = -1;
+  for (var w = 0; w < 7; w++) for (var h = 0; h < 24; h++){
+    var v = heat[w][h];
+    if (v > 0){ hMin = Math.min(hMin, h); hMax = Math.max(hMax, h); }
+    if (v > max){ max = v; pw = w; ph = h; }
+  }
+  if (max === 0){ card.hidden = true; return; }
+  card.hidden = false;
+  hMin = Math.max(0, Math.min(hMin, 8) - 0); hMax = Math.min(23, Math.max(hMax, 18));
+  var cols = hMax - hMin + 1;
+  box.style.gridTemplateColumns = "34px repeat(" + cols + ", minmax(0,1fr))";
+  var pad = function(n){ return String(n).padStart(2,"0"); };
+  box.appendChild(document.createElement("span"));
+  for (var h2 = hMin; h2 <= hMax; h2++){
+    var hl = document.createElement("span"); hl.className = "hl";
+    if ((h2 - hMin) % 2 === 0) hl.textContent = pad(h2);
+    box.appendChild(hl);
+  }
+  for (var d2 = 0; d2 < 7; d2++){
+    var lab = document.createElement("span"); lab.className = "hl r"; lab.textContent = DAYS[d2]; box.appendChild(lab);
+    for (var h3 = hMin; h3 <= hMax; h3++){
+      var n = heat[d2][h3], c = document.createElement("span"); c.className = "hc";
+      if (n > 0) c.style.background = "rgba(112,78,253," + (0.18 + 0.82 * n / max).toFixed(2) + ")";
+      c.title = DAYS[d2] + " " + pad(h3) + ":00, " + n + (n === 1 ? " mensaje" : " mensajes");
+      box.appendChild(c);
+    }
+  }
+  $("heatHint").textContent = "Hora de Chile. Más movimiento: " + DAYS_LONG[pw] + " entre las " + pad(ph) + ":00 y las " + pad(ph + 1) + ":00.";
+}
+
+function render(d){
+  var daily = (d.daily || []).map(function(p){
+    return { date: String(p.date).slice(0,10), messages: Number(p.messages) || 0, users: p.users == null ? null : (Number(p.users) || 0) };
+  }).sort(function(a,b){ return a.date < b.date ? -1 : 1; });
+  var t = d.totals || {}, der = d.derivations || {};
+  var msgs = t.messages != null ? Number(t.messages) : daily.reduce(function(a,p){ return a + p.messages; }, 0);
+  var users = t.uniqueUsers != null ? Number(t.uniqueUsers) : null;
+
+  /* Hero */
+  $("heroTitle").textContent = users != null
+    ? "Pía ya ayudó a " + nf.format(users) + (users === 1 ? " persona" : " personas")
+    : "Pía ya respondió " + nf.format(msgs) + (msgs === 1 ? " mensaje" : " mensajes");
+  var sub = nf.format(msgs) + (msgs === 1 ? " mensaje" : " mensajes");
+  if (daily.length) sub += " desde el " + fmtDay(daily[0].date, {day:"numeric", month:"long"});
+  var up = d.updatedAt ? new Date(d.updatedAt) : null;
+  if (up && !isNaN(up)) sub += ". Actualizado el " + up.toLocaleString("es-CL", {day:"numeric", month:"short", hour:"2-digit", minute:"2-digit"});
+  $("heroSub").textContent = sub.replace(/\.$/, "") + ".";
+
+  /* KPIs */
+  var kpis = [{ l:"Mensajes totales", v:nf.format(msgs), s: daily.length ? "Desde el " + fmtDay(daily[0].date) : "" }];
+  if (daily.length){
+    var last = daily.slice(-7).reduce(function(a,p){ return a + p.messages; }, 0);
+    var k = { l:"Últimos 7 días", v:nf.format(last), s:"" };
+    if (daily.length >= 14){
+      var prev = daily.slice(-14, -7).reduce(function(a,p){ return a + p.messages; }, 0);
+      if (prev > 0){ var dl = Math.round((last - prev) / prev * 100); k.s = (dl >= 0 ? "▲ " : "▼ ") + P(Math.abs(dl)) + " vs. los 7 días anteriores"; k.up = dl >= 0; }
+      else k.s = "Sin datos de la semana anterior";
+    }
+    kpis.push(k);
+  }
+  if (t.returning != null && users){ var rv = Number(t.returning) || 0; kpis.push({ l:"Volvieron a usarla", v:nf.format(rv), s:P(pct(rv, users)) + " de las personas" }); }
+  if (t.headcount && users != null){ var hc = Number(t.headcount); kpis.push({ l:"Adopción", v:P(pct(users, hc)), s:nf.format(users) + " de " + nf.format(hc) + " colaboradores" }); }
+  if (t.private != null){ var pv = Number(t.private) || 0; kpis.push({ l:"Temas delicados", v:nf.format(pv), s:P(pct(pv, msgs)) + " de los mensajes" }); }
+  var kbox = $("kpis"); kbox.replaceChildren();
+  kpis.forEach(function(k){
+    var c = document.createElement("div"); c.className = "card kpi";
+    var l = document.createElement("div"); l.className = "l"; l.textContent = k.l;
+    var v = document.createElement("div"); v.className = "v"; v.textContent = k.v;
+    var s = document.createElement("div"); s.className = "s" + (k.up ? " up" : ""); s.textContent = k.s;
+    c.append(l, v, s); kbox.append(c);
+  });
+
+  show("app");
+  $("logout").hidden = DEMO;
+  lastDaily = daily;
+  renderChart(daily);
+  renderHeat(d.heat);
+  bars("cFreq", "bFreq", entriesFrom(d.byFrequency, LABELS.freq).sort(function(x,y){ return Object.keys(LABELS.freq).indexOf(x.key) - Object.keys(LABELS.freq).indexOf(y.key); }), null);
+  bars("cChannel", "bChannel", entriesFrom(d.byChannel, LABELS.channel), "#2CB7FF");
+}
+
+/* ====== EVENTOS ====== */
+$("retry").addEventListener("click", start);
+$("loginForm").addEventListener("submit", function(e){
+  e.preventDefault();
+  key = $("pw").value.trim();
+  if (!key) return;
+  try { sessionStorage.setItem("pia_key", key); } catch (x) {}
+  start();
+});
+$("logout").addEventListener("click", function(){
+  key = null;
+  try { sessionStorage.removeItem("pia_key"); } catch (x) {}
+  $("heroTitle").textContent = "Métricas de Pía";
+  $("heroSub").textContent = "Uso del asistente de Talento y Bienestar.";
+  showLogin("Cerraste sesión.");
+});
+var rz;
+if (window.ResizeObserver){
+  new ResizeObserver(function(){
+    clearTimeout(rz);
+    rz = setTimeout(function(){
+      var w = Math.floor($("chart").clientWidth || 0);
+      if (lastDaily && w && Math.abs(w - lastW) > 4) renderChart(lastDaily);
+    }, 120);
+  }).observe($("chart"));
+}
+
+start();
+})();
+</script>
+</body>
+</html>
