@@ -1,32 +1,53 @@
 // api/metrics.js — Vercel Serverless Function (Node 18+)
 //
 // Qué hace:
-//   1) Pide la clave del panel (header X-Panel-Key) y la compara con PANEL_PASSWORD.
+//   1) Verifica que quien llama inició sesión con Google (token ID) y que su cuenta es de ADIPA.
 //   2) Llama al webhook de n8n con un token secreto que el navegador nunca ve.
 //   3) Devuelve solo los campos agregados del contrato (lista blanca), aunque n8n mande de más.
 //
 // Variables de entorno (Vercel → Project → Settings → Environment Variables):
-//   PANEL_PASSWORD     Clave compartida del panel (larga y aleatoria)
+//   GOOGLE_CLIENT_ID   Client ID de OAuth (el mismo que va en index.html)
+//   ALLOWED_DOMAINS    Dominios de Workspace con acceso, separados por coma (ej: adipa.cl)
+//   ALLOWED_EMAILS     Opcional. Si existe, SOLO esos correos entran (además de ser de ADIPA)
 //   N8N_WEBHOOK_URL    URL de producción del webhook de n8n
 //   N8N_TOKEN          Token secreto que n8n exige en el header
 //   N8N_TOKEN_HEADER   Opcional. Nombre del header (por defecto X-PIA-Token)
 
-const crypto = require("crypto");
-
 const {
-  PANEL_PASSWORD,
+  GOOGLE_CLIENT_ID,
+  ALLOWED_DOMAINS = "",
+  ALLOWED_EMAILS = "",
   N8N_WEBHOOK_URL,
   N8N_TOKEN,
   N8N_TOKEN_HEADER = "X-PIA-Token",
 } = process.env;
 
-// Comparación en tiempo constante (no revela cuántos caracteres coinciden).
-function safeEqual(a, b) {
-  const ha = crypto.createHash("sha256").update(String(a)).digest();
-  const hb = crypto.createHash("sha256").update(String(b)).digest();
-  return crypto.timingSafeEqual(ha, hb);
+const list = (s) => s.split(",").map((x) => x.trim().toLowerCase()).filter(Boolean);
+
+async function verifyGoogleToken(idToken) {
+  // Google valida firma y expiración del token en este endpoint.
+  const r = await fetch(
+    "https://oauth2.googleapis.com/tokeninfo?id_token=" + encodeURIComponent(idToken)
+  );
+  if (!r.ok) return null;
+  const p = await r.json();
+  const issOk = p.iss === "accounts.google.com" || p.iss === "https://accounts.google.com";
+  const verified = p.email_verified === true || p.email_verified === "true";
+  if (p.aud !== GOOGLE_CLIENT_ID || !issOk || !verified || !p.email) return null;
+  if (Number(p.exp) * 1000 < Date.now()) return null;
+  return p;
 }
-const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+// Exige que la cuenta pertenezca a un Workspace permitido (claim "hd"), no solo que el correo termine en @adipa.cl.
+function isAllowed(p) {
+  const domains = list(ALLOWED_DOMAINS);
+  const emails = list(ALLOWED_EMAILS);
+  const email = String(p.email).toLowerCase();
+  const hd = String(p.hd || "").toLowerCase();
+  if (!domains.includes(hd) || !domains.includes(email.split("@")[1])) return false;
+  if (emails.length) return emails.includes(email);
+  return true;
+}
 
 // Lista blanca: solo pasan estos campos (y solo como números) hacia el navegador.
 // Así, aunque n8n devuelva de más (filas, IDs, riesgo), no sale nada fuera del contrato.
@@ -68,15 +89,21 @@ module.exports = async (req, res) => {
   res.setHeader("Cache-Control", "private, no-store");
 
   if (req.method !== "GET") return res.status(405).json({ error: "method_not_allowed" });
-  if (!PANEL_PASSWORD || !N8N_WEBHOOK_URL || !N8N_TOKEN) {
+  if (!GOOGLE_CLIENT_ID || !N8N_WEBHOOK_URL || !N8N_TOKEN || !list(ALLOWED_DOMAINS).length) {
     return res.status(500).json({ error: "server_not_configured" });
   }
 
-  const key = req.headers["x-panel-key"];
-  if (!key || !safeEqual(key, PANEL_PASSWORD)) {
-    await sleep(500); // frena intentos repetidos
-    return res.status(401).json({ error: "invalid_key" });
+  const m = /^Bearer (.+)$/.exec(req.headers.authorization || "");
+  if (!m) return res.status(401).json({ error: "missing_token" });
+
+  let payload = null;
+  try {
+    payload = await verifyGoogleToken(m[1]);
+  } catch (_) {
+    return res.status(502).json({ error: "auth_provider_unreachable" });
   }
+  if (!payload) return res.status(401).json({ error: "invalid_token" });
+  if (!isAllowed(payload)) return res.status(403).json({ error: "not_allowed" });
 
   const ctrl = new AbortController();
   const timer = setTimeout(() => ctrl.abort(), 10000);

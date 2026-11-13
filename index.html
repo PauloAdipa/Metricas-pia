@@ -82,9 +82,7 @@ body{margin:0;background:var(--bg);color:var(--text);font-family:Poppins,Helveti
 
 .login,.status{margin-top:16px;text-align:center;padding:28px 18px}
 .login p,.status p{margin:6px auto 16px;max-width:46ch;color:var(--muted);font-size:14px}
-#loginForm{display:flex;gap:8px;justify-content:center;flex-wrap:wrap}
-#pw{font:inherit;font-size:14px;color:var(--text);background:var(--card);border:1px solid var(--border);border-radius:8px;padding:9px 12px;min-width:220px}
-#pw:focus-visible{outline:3px solid var(--secondary);outline-offset:2px}
+#gbtn{display:flex;justify-content:center;min-height:44px}
 button.btn{font:inherit;font-size:14px;font-weight:500;color:#fff;background:var(--primary);border:0;border-radius:8px;padding:9px 18px;cursor:pointer}
 button.link{font:inherit;font-size:12px;color:var(--muted);background:none;border:0;padding:0;cursor:pointer;text-decoration:underline}
 button:focus-visible{outline:3px solid var(--secondary);outline-offset:2px}
@@ -108,12 +106,9 @@ button:focus-visible{outline:3px solid var(--secondary);outline-offset:2px}
   </header>
 
   <section class="card login" id="login" hidden>
-    <h2>Ingresa la clave del panel</h2>
-    <p id="loginMsg">Este panel es interno. Pídele la clave al equipo de Talento y Bienestar.</p>
-    <form id="loginForm" autocomplete="off">
-      <input type="password" id="pw" aria-label="Clave del panel" placeholder="Clave" required>
-      <button class="btn" type="submit">Entrar</button>
-    </form>
+    <h2>Entra con tu cuenta de ADIPA</h2>
+    <p id="loginMsg">Este panel es interno.</p>
+    <div id="gbtn"></div>
   </section>
 
   <section class="card status" id="status" hidden>
@@ -171,8 +166,9 @@ button:focus-visible{outline:3px solid var(--secondary);outline-offset:2px}
 "use strict";
 
 /* ====== CONFIGURACIÓN ======
-   DEMO = true  → muestra datos de ejemplo (sin clave ni API). Cambia a false al desplegar en Vercel. */
-var CONFIG = { DEMO: false, API_URL: "/api/metrics" };
+   DEMO = true  → datos de ejemplo (sin login ni API). En producción debe ser false.
+   GOOGLE_CLIENT_ID → el Client ID de Google Cloud (el mismo que va en Vercel). */
+var CONFIG = { DEMO: false, GOOGLE_CLIENT_ID: "TU_CLIENT_ID.apps.googleusercontent.com", API_URL: "/api/metrics" };
 var DEMO = CONFIG.DEMO;
 
 var $ = function(id){ return document.getElementById(id); };
@@ -231,9 +227,13 @@ function demoData(){
 }
 
 /* ====== AUTENTICACIÓN Y CARGA ====== */
-var key = null, lastDaily = null, lastW = 0;
-try { key = sessionStorage.getItem("pia_key"); } catch (e) {}
+var token = null, lastDaily = null, lastW = 0;
+try { token = sessionStorage.getItem("pia_token"); } catch (e) {}
 
+function saveToken(t){
+  token = t;
+  try { if (t) sessionStorage.setItem("pia_token", t); else sessionStorage.removeItem("pia_token"); } catch (e) {}
+}
 function show(which){ ["login","status","app"].forEach(function(k){ $(k).hidden = k !== which; }); }
 function setStatus(title, text, retry){
   show("status");
@@ -242,16 +242,35 @@ function setStatus(title, text, retry){
   $("retry").hidden = !retry;
 }
 
+function loadGsi(){
+  return new Promise(function(res, rej){
+    if (window.google && google.accounts) return res();
+    var s = document.createElement("script");
+    s.src = "https://accounts.google.com/gsi/client"; s.async = true;
+    s.onload = res; s.onerror = function(){ rej(new Error("gsi")); };
+    document.head.appendChild(s);
+  });
+}
+
 function showLogin(msg){
   show("login");
-  $("loginMsg").textContent = msg || "Este panel es interno. Pídele la clave al equipo de Talento y Bienestar.";
-  $("pw").value = "";
-  $("pw").focus();
+  $("loginMsg").textContent = msg || "Este panel es interno. Entra con tu cuenta de Google de ADIPA para verlo.";
+  loadGsi().then(function(){
+    google.accounts.id.initialize({
+      client_id: CONFIG.GOOGLE_CLIENT_ID,
+      callback: function(r){ saveToken(r.credential); start(); },
+      auto_select: false
+    });
+    $("gbtn").replaceChildren();
+    google.accounts.id.renderButton($("gbtn"), { theme:"outline", size:"large", text:"signin_with", shape:"rectangular", locale:"es" });
+  }).catch(function(){
+    $("loginMsg").textContent = "No pudimos cargar el inicio de sesión de Google. Revisa tu conexión e inténtalo de nuevo.";
+  });
 }
 
 function fetchMetrics(){
-  return fetch(CONFIG.API_URL, { headers: { "X-Panel-Key": key } }).then(function(r){
-    if (r.status === 401){ var e = new Error("auth"); e.code = 401; throw e; }
+  return fetch(CONFIG.API_URL, { headers: { Authorization: "Bearer " + token } }).then(function(r){
+    if (r.status === 401 || r.status === 403){ var e = new Error("auth"); e.code = r.status; throw e; }
     if (!r.ok) throw new Error("http " + r.status);
     return r.json();
   });
@@ -259,14 +278,16 @@ function fetchMetrics(){
 
 function start(){
   if (DEMO){ $("demo").hidden = false; render(demoData()); return; }
-  if (!key){ showLogin(); return; }
+  if (CONFIG.GOOGLE_CLIENT_ID.indexOf("TU_") === 0){
+    setStatus("Falta configurar el login", "Pega el Client ID de Google en CONFIG.GOOGLE_CLIENT_ID dentro de index.html.", false);
+    return;
+  }
+  if (!token){ showLogin(); return; }
   setStatus("Cargando métricas", "Un momento.", false);
   fetchMetrics().then(render).catch(function(e){
-    if (e.code === 401){
-      key = null;
-      try { sessionStorage.removeItem("pia_key"); } catch (x) {}
-      showLogin("La clave no es correcta. Inténtalo de nuevo.");
-    } else setStatus("No pudimos cargar las métricas", "Revisa tu conexión e inténtalo de nuevo. Si sigue fallando, avisa al equipo que mantiene Pía.", true);
+    if (e.code === 401){ saveToken(null); showLogin("Tu sesión venció. Entra de nuevo."); }
+    else if (e.code === 403){ saveToken(null); showLogin("Esta cuenta no tiene acceso al panel. Prueba con tu cuenta de ADIPA."); }
+    else setStatus("No pudimos cargar las métricas", "Revisa tu conexión e inténtalo de nuevo. Si sigue fallando, avisa al equipo que mantiene Pía.", true);
   });
 }
 
@@ -446,16 +467,9 @@ function render(d){
 
 /* ====== EVENTOS ====== */
 $("retry").addEventListener("click", start);
-$("loginForm").addEventListener("submit", function(e){
-  e.preventDefault();
-  key = $("pw").value.trim();
-  if (!key) return;
-  try { sessionStorage.setItem("pia_key", key); } catch (x) {}
-  start();
-});
 $("logout").addEventListener("click", function(){
-  key = null;
-  try { sessionStorage.removeItem("pia_key"); } catch (x) {}
+  saveToken(null);
+  if (window.google && google.accounts) google.accounts.id.disableAutoSelect();
   $("heroTitle").textContent = "Métricas de Pía";
   $("heroSub").textContent = "Uso del asistente de Talento y Bienestar.";
   showLogin("Cerraste sesión.");
